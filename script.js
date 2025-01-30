@@ -1,89 +1,183 @@
-// Quiz data
-const quizData = [
-    {
+class Quiz {
+  constructor() {
+    this.questions = [];
+    this.currentQuestionIndex = 0;
+    this.score = 0;
+    this.timeLeft = 30;
+    this.timerId = null;
+    this.highscores = JSON.parse(localStorage.getItem('highscores')) || [];
+    
+    this.init();
+  }
+
+  init() {
+    this.loadQuestions();
+    this.setupEventListeners();
+    this.startQuiz();
+  }
+
+  loadQuestions() {
+    // Sample questions - replace with your actual questions
+    this.questions = [
+      {
         question: "What is the capital of France?",
-        a: "New York",
-        b: "London",
-        c: "Paris",
-        d: "Dubai",
-        correct: "c"
-    },
-    {
-        question: "Who wrote 'To Kill a Mockingbird'?",
-        a: "Ernest Hemingway",
-        b: "Harper Lee",
-        c: "F. Scott Fitzgerald",
-        d: "Mark Twain",
-        correct: "b"
-    },
-    // Add more questions as needed
-];
+        answers: { a: "London", b: "Paris", c: "Berlin", d: "Madrid" },
+        correctAnswer: "b"
+      },
+      {
+        question: "Which planet is known as the Red Planet?",
+        answers: { a: "Venus", b: "Mars", c: "Jupiter", d: "Saturn" },
+        correctAnswer: "b"
+      }
+    ];
+    
+    document.getElementById('total-questions').textContent = this.questions.length;
+  }
 
-// Current question index
-let currentQuestion = 0;
+  setupEventListeners() {
+    document.querySelectorAll('.answer-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => this.handleAnswer(e));
+    });
+    
+    document.getElementById('restart-btn').addEventListener('click', () => this.restartQuiz());
+    document.getElementById('highscores-btn').addEventListener('click', () => this.showHighscores());
+  }
 
-// User's score
-let score = 0;
+  startQuiz() {
+    this.showQuestion();
+    this.startTimer();
+  }
 
-// Timer
-let timer = 30;
+  showQuestion() {
+    const currentQuestion = this.questions[this.currentQuestionIndex];
+    document.getElementById('question').textContent = currentQuestion.question;
+    
+    Object.entries(currentQuestion.answers).forEach(([key, value]) => {
+      const btn = document.querySelector(`[data-answer="${key}"]`);
+      btn.querySelector('.answer-text').textContent = value;
+    });
+    
+    document.getElementById('current-question').textContent = this.currentQuestionIndex + 1;
+    this.updateProgress();
+  }
 
-// High scores
-let highScores = JSON.parse(localStorage.getItem('highScores')) || [];
+  startTimer() {
+    this.timeLeft = 30;
+    document.getElementById('time').textContent = this.timeLeft;
+    
+    this.timerId = setInterval(() => {
+      this.timeLeft--;
+      document.getElementById('time').textContent = this.timeLeft;
+      document.querySelector('.time-remaining').style.width = 
+        `${(this.timeLeft / 30) * 100}%`;
 
-// Start the quiz
-startQuiz();
-
-function startQuiz() {
-    // Shuffle the questions
-    quizData.sort(() => Math.random() - 0.5);
-
-    // Display the first question
-    showQuestion();
-
-    // Start the timer
-    setInterval(() => {
-        timer--;
-        document.getElementById('timer').textContent = `Time remaining: ${timer}s`;
-
-        if (timer <= 0) {
-            endQuiz();
-        }
+      if (this.timeLeft <= 0) {
+        this.handleTimeOut();
+      }
     }, 1000);
-}
+  }
 
-function showQuestion() {
-    const question = quizData[currentQuestion];
-    document.getElementById('question').textContent = question.question;
-    document.getElementById('a').textContent = question.a;
-    document.getElementById('b').textContent = question.b;
-    document.getElementById('c').textContent = question.c;
-    document.getElementById('d').textContent = question.d;
-}
+  handleAnswer(e) {
+    const selectedAnswer = e.currentTarget.dataset.answer;
+    const correctAnswer = this.questions[this.currentQuestionIndex].correctAnswer;
+    
+    document.querySelectorAll('.answer-btn').forEach(btn => {
+      btn.classList.add(btn.dataset.answer === correctAnswer ? 'correct' : 'wrong');
+      btn.disabled = true;
+    });
 
-function chooseAnswer(answer) {
-    if (answer === quizData[currentQuestion].correct) {
-        score++;
+    if (selectedAnswer === correctAnswer) {
+      this.score += this.timeLeft;
+      document.getElementById('current-score').textContent = `Score: ${this.score}`;
     }
 
-    currentQuestion++;
-    if (currentQuestion < quizData.length) {
-        showQuestion();
+    setTimeout(() => {
+      this.nextQuestion();
+    }, 1500);
+  }
+
+  nextQuestion() {
+    this.currentQuestionIndex++;
+    document.querySelectorAll('.answer-btn').forEach(btn => {
+      btn.classList.remove('correct', 'wrong');
+      btn.disabled = false;
+    });
+
+    if (this.currentQuestionIndex < this.questions.length) {
+      this.showQuestion();
+      this.resetTimer();
     } else {
-        endQuiz();
+      this.endQuiz();
     }
+  }
+
+  handleTimeOut() {
+    clearInterval(this.timerId);
+    this.nextQuestion();
+  }
+
+  resetTimer() {
+    clearInterval(this.timerId);
+    this.startTimer();
+  }
+
+  endQuiz() {
+    clearInterval(this.timerId);
+    document.getElementById('quiz-screen').classList.add('hidden');
+    document.getElementById('results-screen').classList.remove('hidden');
+    document.getElementById('final-score').textContent = this.score;
+    
+    this.saveHighscore();
+  }
+
+  saveHighscore() {
+    const name = prompt('Enter your name for the highscore board:');
+    if (name) {
+      this.highscores.push({ name, score: this.score });
+      this.highscores.sort((a, b) => b.score - a.score);
+      this.highscores = this.highscores.slice(0, 10);
+      localStorage.setItem('highscores', JSON.stringify(this.highscores));
+      this.updateHighscoresList();
+    }
+  }
+
+  showHighscores() {
+    document.getElementById('highscores-modal').showModal();
+    this.updateHighscoresList();
+  }
+
+  updateHighscoresList() {
+    const list = document.getElementById('highscores-list');
+    list.innerHTML = this.highscores
+      .map((entry, index) => `
+        <li>
+          <span>${index + 1}. ${entry.name}</span>
+          <span>${entry.score}</span>
+        </li>
+      `).join('');
+  }
+
+  updateProgress() {
+    const progress = (this.currentQuestionIndex / this.questions.length) * 100;
+    document.documentElement.style.setProperty('--progress', `${progress}%`);
+  }
+
+  restartQuiz() {
+    this.currentQuestionIndex = 0;
+    this.score = 0;
+    this.timeLeft = 30;
+    document.getElementById('current-score').textContent = 'Score: 0';
+    document.getElementById('quiz-screen').classList.remove('hidden');
+    document.getElementById('results-screen').classList.add('hidden');
+    this.startQuiz();
+  }
 }
 
-function endQuiz() {
-    // Stop the timer
-    clearInterval(timer);
+// Initialize the quiz when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  new Quiz();
+});
 
-    // Check if this score is a new high score
-    if (score > Math.max(...highScores)) {
-        highScores.push(score);
-        localStorage.setItem('highScores', JSON.stringify(highScores));
-    }
-
-    // Show the final score
-    document.getElementById('quiz').innerHTML = `<h2>Your score: ${score}/${quizData.length}</h2><h2>High score: ${Math.max(...highScores)}</h2>`;
+function closeHighscores() {
+  document.getElementById('highscores-modal').close();
 }
