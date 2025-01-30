@@ -1,0 +1,19 @@
+{
+    "questions": [
+        {
+            "type": "mcq",
+            "text": "What is the output of 'print(3 * '7')' in Python?",
+            "options": ["21", "777", "Error"],
+            "answer": 2,
+            "difficulty": "medium",
+            "category": "Python Basics"
+        },
+        {
+            "type": "true_false",
+            "text": "Python uses static typing.",
+            "answer": "False",
+            "difficulty": "easy",
+            "category": "Python Basics"
+        }
+    ]
+}
